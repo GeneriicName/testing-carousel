@@ -166,19 +166,17 @@ class VanillaCarousel {
       clone.remove();
     });
     
-    // CRITICAL FIX: For multi-slide, we need enough clones to fill the entire view
-    // If showing 3 slides, we need to clone enough slides to seamlessly transition
+    // For seamless loop, clone enough slides to fill the view
     const slidesToClone = Math.max(this.config.slidesPerView, 1);
     this.loopedSlides = slidesToClone;
     
-    // FIXED: Clone LAST slides at the BEGINNING in REVERSE order
-    // This ensures when dragging backwards, slides 6,7,8 appear in correct positions
+    // Clone LAST slides at the BEGINNING (for seamless backward transition)
     for (let i = 0; i < slidesToClone; i++) {
       const sourceIndex = this.originalSlides.length - slidesToClone + i;
       const clone = this.originalSlides[sourceIndex].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-prev');
       clone.setAttribute('data-swiper-slide-index', sourceIndex);
-      clone.setAttribute('data-original-index', sourceIndex); // Track original position
+      clone.setAttribute('data-original-index', sourceIndex);
       this.wrapper.insertBefore(clone, this.wrapper.firstChild);
     }
     
@@ -187,7 +185,7 @@ class VanillaCarousel {
       const clone = this.originalSlides[i].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-next');
       clone.setAttribute('data-swiper-slide-index', i);
-      clone.setAttribute('data-original-index', i); // Track original position
+      clone.setAttribute('data-original-index', i);
       this.wrapper.appendChild(clone);
     }
     
@@ -502,8 +500,7 @@ class VanillaCarousel {
       const resistance = 0.2;
       const resistedDelta = delta * resistance;
       
-      // CRITICAL FIX: During drag, calculate the correct position
-      // This ensures the right slides are visible during the drag
+      // During drag, calculate the correct position
       const currentTranslate = this.getSlideTranslate(this.currentIndex);
       this.setTransform(currentTranslate + resistedDelta);
     }
@@ -568,24 +565,23 @@ class VanillaCarousel {
     const totalSlides = this.slides.length;
     const realSlidesCount = this.originalSlides.length;
     
-    // Calculate boundaries more precisely for multi-slide
+    // Calculate boundaries for loop transitions
     const firstRealIndex = this.loopedSlides;
     const lastRealIndex = firstRealIndex + realSlidesCount - 1;
     
-    // CRITICAL FIX: Better boundary detection for multi-slide carousels
-    // When showing multiple slides, we need to account for the view window
-    const maxAllowedIndex = lastRealIndex - this.config.slidesPerView + 1;
+    // CRITICAL FIX: For multi-slide, calculate the maximum allowed position
+    // We can show slides until we reach the last group that fills the view
+    const maxViewableIndex = lastRealIndex - this.config.slidesPerView + 1;
     
-    // Going forward past the allowed range
-    if (this.currentIndex > maxAllowedIndex) {
+    // Going forward past the last viewable position
+    if (this.currentIndex > maxViewableIndex) {
       if (animated) {
         this.allowSlideNext = false;
         this.allowSlidePrev = false;
         
         setTimeout(() => {
-          // Jump to the beginning with the same relative position
-          const overflowAmount = this.currentIndex - maxAllowedIndex;
-          this.currentIndex = firstRealIndex + overflowAmount - 1;
+          // Jump to the beginning
+          this.currentIndex = firstRealIndex;
           this.updateRealIndex();
           this.updateSlides(false);
           this.updatePagination();
@@ -593,8 +589,7 @@ class VanillaCarousel {
           this.allowSlidePrev = true;
         }, this.config.speed);
       } else {
-        const overflowAmount = this.currentIndex - maxAllowedIndex;
-        this.currentIndex = firstRealIndex + overflowAmount - 1;
+        this.currentIndex = firstRealIndex;
       }
     }
     // Going backward past the first real slide
@@ -605,9 +600,8 @@ class VanillaCarousel {
         
         setTimeout(() => {
           // CRITICAL FIX: Jump to the correct end position
-          // When going backwards from slide 1, we should show slides 6,7,8
-          const underflowAmount = firstRealIndex - this.currentIndex;
-          this.currentIndex = maxAllowedIndex + underflowAmount;
+          // For multi-slide, we want to show the last complete group
+          this.currentIndex = maxViewableIndex;
           this.updateRealIndex();
           this.updateSlides(false);
           this.updatePagination();
@@ -615,22 +609,23 @@ class VanillaCarousel {
           this.allowSlidePrev = true;
         }, this.config.speed);
       } else {
-        const underflowAmount = firstRealIndex - this.currentIndex;
-        this.currentIndex = maxAllowedIndex + underflowAmount;
+        this.currentIndex = maxViewableIndex;
       }
     }
   }
 
   updateRealIndex() {
     if (this.config.loop) {
+      // CRITICAL FIX: Calculate real index based on the first visible slide
       let realIndex = this.currentIndex - this.loopedSlides;
       
-      // Normalize the real index with better wrapping
+      // Normalize the real index
+      const realSlidesCount = this.originalSlides.length;
       while (realIndex < 0) {
-        realIndex += this.originalSlides.length;
+        realIndex += realSlidesCount;
       }
-      while (realIndex >= this.originalSlides.length) {
-        realIndex -= this.originalSlides.length;
+      while (realIndex >= realSlidesCount) {
+        realIndex -= realSlidesCount;
       }
       
       this.realIndex = realIndex;
