@@ -72,6 +72,11 @@ class VanillaCarousel {
     this.allowSlidePrev = true;
     this.isLoopTransitioning = false;
     
+    // CRITICAL: Buffer zones for smooth infinite scrolling
+    this.bufferSize = 0;
+    this.slideWidth = 0;
+    this.containerWidth = 0;
+    
     this.init();
   }
 
@@ -79,6 +84,7 @@ class VanillaCarousel {
     this.createStructure();
     this.bindEvents();
     this.updateBreakpoint();
+    this.calculateDimensions();
     this.goToSlide(this.config.loop ? this.loopedSlides : 0, false);
     
     if (this.config.autoplay) {
@@ -148,18 +154,26 @@ class VanillaCarousel {
     if (this.config.slidesPerView > 1) {
       this.container.classList.add('carousel-multi-slide');
       
-      // Calculate proper slide width
-      const containerWidth = this.getContainerSize();
-      const totalSpacing = this.config.spaceBetween * (this.config.slidesPerView - 1);
-      const slideWidth = (containerWidth - totalSpacing) / this.config.slidesPerView;
-      
       // Set CSS variables for proper sizing
       this.container.style.setProperty('--slides-per-view', this.config.slidesPerView);
       this.container.style.setProperty('--space-between', this.config.spaceBetween + 'px');
-      this.container.style.setProperty('--slide-width', slideWidth + 'px');
     } else {
       this.container.classList.remove('carousel-multi-slide');
     }
+  }
+
+  calculateDimensions() {
+    this.containerWidth = this.getContainerSize();
+    
+    if (this.config.slidesPerView > 1) {
+      const totalSpacing = this.config.spaceBetween * (this.config.slidesPerView - 1);
+      this.slideWidth = (this.containerWidth - totalSpacing) / this.config.slidesPerView;
+    } else {
+      this.slideWidth = this.containerWidth;
+    }
+    
+    // Update CSS variable for precise width
+    this.container.style.setProperty('--slide-width', this.slideWidth + 'px');
   }
 
   createLoopSlides() {
@@ -168,28 +182,29 @@ class VanillaCarousel {
       clone.remove();
     });
     
-    // CRITICAL: For seamless backwards transition, we need enough clones
-    // Clone enough slides to fill the entire view when going backwards
-    const slidesToClone = Math.max(this.config.slidesPerView, 1);
-    this.loopedSlides = slidesToClone;
+    // CRITICAL: Calculate buffer size for seamless infinite scrolling
+    // We need enough clones to handle the maximum visible slides plus buffer
+    this.bufferSize = Math.max(this.config.slidesPerView * 2, 3);
+    this.loopedSlides = this.bufferSize;
     
-    // Clone LAST slides at the BEGINNING (for seamless backward transition)
-    // This ensures when going backwards from slide 1, we see slides [6,7,8] -> [7,8,1] -> [8,1,2] etc.
-    for (let i = 0; i < slidesToClone; i++) {
-      const sourceIndex = this.originalSlides.length - slidesToClone + i;
+    // Clone LAST slides at the BEGINNING (for backwards transition)
+    for (let i = 0; i < this.bufferSize; i++) {
+      const sourceIndex = this.originalSlides.length - this.bufferSize + i;
       const clone = this.originalSlides[sourceIndex].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-prev');
       clone.setAttribute('data-swiper-slide-index', sourceIndex);
       clone.setAttribute('data-original-index', sourceIndex);
+      clone.setAttribute('data-clone-type', 'prev');
       this.wrapper.insertBefore(clone, this.wrapper.firstChild);
     }
     
-    // Clone FIRST slides at the END (for seamless forward transition)
-    for (let i = 0; i < slidesToClone; i++) {
+    // Clone FIRST slides at the END (for forward transition)
+    for (let i = 0; i < this.bufferSize; i++) {
       const clone = this.originalSlides[i].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-next');
       clone.setAttribute('data-swiper-slide-index', i);
       clone.setAttribute('data-original-index', i);
+      clone.setAttribute('data-clone-type', 'next');
       this.wrapper.appendChild(clone);
     }
     
@@ -447,7 +462,7 @@ class VanillaCarousel {
 
   onResize() {
     this.updateBreakpoint();
-    this.setupMultiSlide();
+    this.calculateDimensions();
     this.goToSlide(this.currentIndex, false);
   }
 
@@ -566,81 +581,86 @@ class VanillaCarousel {
   }
 
   handleLoopTransition(animated) {
-    const totalSlides = this.slides.length;
     const realSlidesCount = this.originalSlides.length;
-    
-    // Calculate boundaries for loop transitions
     const firstRealIndex = this.loopedSlides;
     const lastRealIndex = firstRealIndex + realSlidesCount - 1;
     
-    // CRITICAL FIX: For multi-slide, calculate the maximum allowed position
-    // We can show slides until we reach the last group that fills the view
+    // CRITICAL: Calculate the boundaries for smooth infinite scrolling
     const maxViewableIndex = lastRealIndex - this.config.slidesPerView + 1;
+    const minViewableIndex = firstRealIndex;
     
-    // Going forward past the last viewable position
+    // FORWARD TRANSITION: Going past the last viewable slide
     if (this.currentIndex > maxViewableIndex) {
       if (animated) {
-        this.isLoopTransitioning = true;
-        this.allowSlideNext = false;
-        this.allowSlidePrev = false;
-        
-        setTimeout(() => {
-          // Jump to the beginning
-          this.currentIndex = firstRealIndex;
-          this.updateRealIndex();
-          this.updateSlides(false);
-          this.updatePagination();
-          this.allowSlideNext = true;
-          this.allowSlidePrev = true;
-          this.isLoopTransitioning = false;
-        }, this.config.speed);
+        this.performLoopTransition('forward', minViewableIndex);
       } else {
-        this.currentIndex = firstRealIndex;
+        this.currentIndex = minViewableIndex;
       }
     }
-    // CRITICAL FIX: Going backward past the first real slide
-    else if (this.currentIndex < firstRealIndex) {
+    // BACKWARD TRANSITION: Going before the first viewable slide
+    else if (this.currentIndex < minViewableIndex) {
       if (animated) {
-        this.isLoopTransitioning = true;
-        this.allowSlideNext = false;
-        this.allowSlidePrev = false;
-        
-        // CRITICAL: Pre-position to show the correct slides during transition
-        // When going backwards from slide 1, we want to immediately show slides [6,7,8]
-        const targetIndex = maxViewableIndex;
-        
-        // First, instantly position to show the target slides without animation
-        this.wrapper.style.transitionDuration = '0ms';
-        this.currentIndex = targetIndex + realSlidesCount; // Position in the duplicate area
-        this.setTransform(this.getSlideTranslate(this.currentIndex));
-        
-        // Force a reflow to ensure the position is applied
-        this.wrapper.offsetHeight;
-        
-        // Now animate to the correct final position
-        setTimeout(() => {
-          this.wrapper.style.transitionDuration = `${this.config.speed}ms`;
-          this.currentIndex = targetIndex;
-          this.updateRealIndex();
-          this.updateSlides(false);
-          this.updatePagination();
-          
-          setTimeout(() => {
-            this.allowSlideNext = true;
-            this.allowSlidePrev = true;
-            this.isLoopTransitioning = false;
-            this.wrapper.style.transitionDuration = '';
-          }, this.config.speed);
-        }, 10);
+        this.performLoopTransition('backward', maxViewableIndex);
       } else {
         this.currentIndex = maxViewableIndex;
       }
     }
   }
 
+  performLoopTransition(direction, targetIndex) {
+    this.isLoopTransitioning = true;
+    this.allowSlideNext = false;
+    this.allowSlidePrev = false;
+    
+    if (direction === 'backward') {
+      // CRITICAL FIX: For backwards transition, pre-position correctly
+      // When going from slide 0 backwards, we want to show slides [6,7,0] -> [7,0,1]
+      
+      // Step 1: Instantly position to show the correct slides in the duplicate area
+      this.wrapper.style.transitionDuration = '0ms';
+      
+      // Position to show the target slides from the duplicate area
+      const duplicateAreaIndex = targetIndex + this.originalSlides.length;
+      this.currentIndex = duplicateAreaIndex;
+      this.setTransform(this.getSlideTranslate(this.currentIndex));
+      
+      // Force reflow
+      this.wrapper.offsetHeight;
+      
+      // Step 2: Animate to the final position
+      requestAnimationFrame(() => {
+        this.wrapper.style.transitionDuration = `${this.config.speed}ms`;
+        this.currentIndex = targetIndex;
+        this.updateRealIndex();
+        this.setTransform(this.getSlideTranslate(this.currentIndex));
+        
+        setTimeout(() => {
+          this.finishLoopTransition();
+        }, this.config.speed);
+      });
+    } else {
+      // Forward transition (existing logic)
+      setTimeout(() => {
+        this.currentIndex = targetIndex;
+        this.updateRealIndex();
+        this.updateSlides(false);
+        this.updatePagination();
+        this.finishLoopTransition();
+      }, this.config.speed);
+    }
+  }
+
+  finishLoopTransition() {
+    this.allowSlideNext = true;
+    this.allowSlidePrev = true;
+    this.isLoopTransitioning = false;
+    this.wrapper.style.transitionDuration = '';
+    this.updatePagination();
+  }
+
   updateRealIndex() {
     if (this.config.loop) {
-      // CRITICAL FIX: Calculate real index based on the first visible slide
+      // Calculate real index based on the first visible slide
       let realIndex = this.currentIndex - this.loopedSlides;
       
       // Normalize the real index
@@ -701,22 +721,14 @@ class VanillaCarousel {
   }
 
   getSlideTranslate(index) {
-    const slideSize = this.getSlideSize();
+    const slideSize = this.slideWidth;
     const spaceBetween = this.config.spaceBetween;
     
     return -(index * (slideSize + spaceBetween));
   }
 
   getSlideSize() {
-    const containerSize = this.getContainerSize();
-    
-    if (this.config.slidesPerView > 1) {
-      const spaceBetween = this.config.spaceBetween;
-      const totalSpacing = spaceBetween * (this.config.slidesPerView - 1);
-      return (containerSize - totalSpacing) / this.config.slidesPerView;
-    }
-    
-    return containerSize;
+    return this.slideWidth;
   }
 
   getContainerSize() {
@@ -897,7 +909,7 @@ class VanillaCarousel {
   // Public API methods
   update() {
     this.updateBreakpoint();
-    this.setupMultiSlide();
+    this.calculateDimensions();
     this.goToSlide(this.currentIndex, false);
     this.updatePagination();
   }
