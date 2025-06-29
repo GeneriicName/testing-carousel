@@ -70,6 +70,7 @@ class VanillaCarousel {
     this.isKeyboardFocused = false;
     this.allowSlideNext = true;
     this.allowSlidePrev = true;
+    this.isLoopTransitioning = false;
     
     this.init();
   }
@@ -124,6 +125,7 @@ class VanillaCarousel {
     this.originalSlides.forEach((slide, index) => {
       slide.classList.add('carousel-slide');
       slide.setAttribute('data-slide-index', index);
+      slide.setAttribute('data-original-index', index);
       
       if (this.config.lazy) {
         this.setupLazyLoading(slide);
@@ -166,11 +168,13 @@ class VanillaCarousel {
       clone.remove();
     });
     
-    // For seamless loop, clone enough slides to fill the view
+    // CRITICAL: For seamless backwards transition, we need enough clones
+    // Clone enough slides to fill the entire view when going backwards
     const slidesToClone = Math.max(this.config.slidesPerView, 1);
     this.loopedSlides = slidesToClone;
     
     // Clone LAST slides at the BEGINNING (for seamless backward transition)
+    // This ensures when going backwards from slide 1, we see slides [6,7,8] -> [7,8,1] -> [8,1,2] etc.
     for (let i = 0; i < slidesToClone; i++) {
       const sourceIndex = this.originalSlides.length - slidesToClone + i;
       const clone = this.originalSlides[sourceIndex].cloneNode(true);
@@ -294,7 +298,7 @@ class VanillaCarousel {
   }
 
   onTouchStart(e) {
-    if (this.isTransitioning) return;
+    if (this.isTransitioning || this.isLoopTransitioning) return;
     
     const touch = e.touches[0];
     this.touchStartX = touch.clientX;
@@ -315,7 +319,7 @@ class VanillaCarousel {
   }
 
   onTouchMove(e) {
-    if (!this.isDragging) return;
+    if (!this.isDragging || this.isLoopTransitioning) return;
     
     e.preventDefault();
     
@@ -507,7 +511,7 @@ class VanillaCarousel {
   }
 
   slideNext() {
-    if (this.isTransitioning || !this.allowSlideNext) return;
+    if (this.isTransitioning || !this.allowSlideNext || this.isLoopTransitioning) return;
     
     if (this.config.loop) {
       this.goToSlide(this.currentIndex + 1);
@@ -521,7 +525,7 @@ class VanillaCarousel {
   }
 
   slidePrev() {
-    if (this.isTransitioning || !this.allowSlidePrev) return;
+    if (this.isTransitioning || !this.allowSlidePrev || this.isLoopTransitioning) return;
     
     if (this.config.loop) {
       this.goToSlide(this.currentIndex - 1);
@@ -534,7 +538,7 @@ class VanillaCarousel {
   }
 
   goToSlide(index, animated = true) {
-    if (this.isTransitioning && animated) return;
+    if ((this.isTransitioning || this.isLoopTransitioning) && animated) return;
     
     const prevIndex = this.currentIndex;
     const prevRealIndex = this.realIndex;
@@ -576,6 +580,7 @@ class VanillaCarousel {
     // Going forward past the last viewable position
     if (this.currentIndex > maxViewableIndex) {
       if (animated) {
+        this.isLoopTransitioning = true;
         this.allowSlideNext = false;
         this.allowSlidePrev = false;
         
@@ -587,27 +592,46 @@ class VanillaCarousel {
           this.updatePagination();
           this.allowSlideNext = true;
           this.allowSlidePrev = true;
+          this.isLoopTransitioning = false;
         }, this.config.speed);
       } else {
         this.currentIndex = firstRealIndex;
       }
     }
-    // Going backward past the first real slide
+    // CRITICAL FIX: Going backward past the first real slide
     else if (this.currentIndex < firstRealIndex) {
       if (animated) {
+        this.isLoopTransitioning = true;
         this.allowSlideNext = false;
         this.allowSlidePrev = false;
         
+        // CRITICAL: Pre-position to show the correct slides during transition
+        // When going backwards from slide 1, we want to immediately show slides [6,7,8]
+        const targetIndex = maxViewableIndex;
+        
+        // First, instantly position to show the target slides without animation
+        this.wrapper.style.transitionDuration = '0ms';
+        this.currentIndex = targetIndex + realSlidesCount; // Position in the duplicate area
+        this.setTransform(this.getSlideTranslate(this.currentIndex));
+        
+        // Force a reflow to ensure the position is applied
+        this.wrapper.offsetHeight;
+        
+        // Now animate to the correct final position
         setTimeout(() => {
-          // CRITICAL FIX: Jump to the correct end position
-          // For multi-slide, we want to show the last complete group
-          this.currentIndex = maxViewableIndex;
+          this.wrapper.style.transitionDuration = `${this.config.speed}ms`;
+          this.currentIndex = targetIndex;
           this.updateRealIndex();
           this.updateSlides(false);
           this.updatePagination();
-          this.allowSlideNext = true;
-          this.allowSlidePrev = true;
-        }, this.config.speed);
+          
+          setTimeout(() => {
+            this.allowSlideNext = true;
+            this.allowSlidePrev = true;
+            this.isLoopTransitioning = false;
+            this.wrapper.style.transitionDuration = '';
+          }, this.config.speed);
+        }, 10);
       } else {
         this.currentIndex = maxViewableIndex;
       }
@@ -635,7 +659,7 @@ class VanillaCarousel {
   }
 
   updateSlides(animated = true) {
-    if (animated) {
+    if (animated && !this.isLoopTransitioning) {
       this.isTransitioning = true;
       this.wrapper.style.transitionDuration = `${this.config.speed}ms`;
       
@@ -643,7 +667,7 @@ class VanillaCarousel {
         this.isTransitioning = false;
         this.wrapper.style.transitionDuration = '';
       }, this.config.speed);
-    } else {
+    } else if (!this.isLoopTransitioning) {
       this.wrapper.style.transitionDuration = '0ms';
       setTimeout(() => {
         this.wrapper.style.transitionDuration = '';
