@@ -166,25 +166,25 @@ class VanillaCarousel {
       clone.remove();
     });
     
-    // For multi-slide, we need enough clones to fill the view
+    // For seamless loop, we need enough clones to cover the view
     const slidesToClone = Math.max(this.config.slidesPerView, 1);
     this.loopedSlides = slidesToClone;
     
-    // Clone last slides at the beginning
+    // Clone FIRST slides at the END (for going forward)
+    for (let i = 0; i < slidesToClone; i++) {
+      const clone = this.originalSlides[i].cloneNode(true);
+      clone.classList.add('carousel-slide-duplicate-next');
+      clone.setAttribute('data-swiper-slide-index', i);
+      this.wrapper.appendChild(clone);
+    }
+    
+    // Clone LAST slides at the BEGINNING (for going backward)
     for (let i = 0; i < slidesToClone; i++) {
       const sourceIndex = this.originalSlides.length - slidesToClone + i;
       const clone = this.originalSlides[sourceIndex].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-prev');
       clone.setAttribute('data-swiper-slide-index', sourceIndex);
       this.wrapper.insertBefore(clone, this.wrapper.firstChild);
-    }
-    
-    // Clone first slides at the end
-    for (let i = 0; i < slidesToClone; i++) {
-      const clone = this.originalSlides[i].cloneNode(true);
-      clone.classList.add('carousel-slide-duplicate-next');
-      clone.setAttribute('data-swiper-slide-index', i);
-      this.wrapper.appendChild(clone);
     }
     
     // Set initial position to first real slide
@@ -558,18 +558,22 @@ class VanillaCarousel {
 
   handleLoopTransition(animated) {
     const totalSlides = this.slides.length;
-    const lastRealSlideIndex = totalSlides - this.loopedSlides - 1;
-    const firstRealSlideIndex = this.loopedSlides;
+    const realSlidesCount = this.originalSlides.length;
+    
+    // Calculate boundaries
+    const firstRealIndex = this.loopedSlides;
+    const lastRealIndex = firstRealIndex + realSlidesCount - 1;
     
     // Going forward past the last real slide
-    if (this.currentIndex > lastRealSlideIndex) {
+    if (this.currentIndex > lastRealIndex) {
       if (animated) {
         this.allowSlideNext = false;
         this.allowSlidePrev = false;
         
         setTimeout(() => {
-          // Jump to the beginning
-          this.currentIndex = firstRealSlideIndex + (this.currentIndex - lastRealSlideIndex - 1);
+          // Jump to the equivalent position at the beginning
+          const offset = this.currentIndex - lastRealIndex - 1;
+          this.currentIndex = firstRealIndex + offset;
           this.updateRealIndex();
           this.updateSlides(false);
           this.updatePagination();
@@ -577,18 +581,20 @@ class VanillaCarousel {
           this.allowSlidePrev = true;
         }, this.config.speed);
       } else {
-        this.currentIndex = firstRealSlideIndex + (this.currentIndex - lastRealSlideIndex - 1);
+        const offset = this.currentIndex - lastRealIndex - 1;
+        this.currentIndex = firstRealIndex + offset;
       }
     }
     // Going backward past the first real slide
-    else if (this.currentIndex < firstRealSlideIndex) {
+    else if (this.currentIndex < firstRealIndex) {
       if (animated) {
         this.allowSlideNext = false;
         this.allowSlidePrev = false;
         
         setTimeout(() => {
-          // Jump to the end
-          this.currentIndex = lastRealSlideIndex + (this.currentIndex - firstRealSlideIndex + 1);
+          // Jump to the equivalent position at the end
+          const offset = firstRealIndex - this.currentIndex - 1;
+          this.currentIndex = lastRealIndex - offset;
           this.updateRealIndex();
           this.updateSlides(false);
           this.updatePagination();
@@ -596,7 +602,8 @@ class VanillaCarousel {
           this.allowSlidePrev = true;
         }, this.config.speed);
       } else {
-        this.currentIndex = lastRealSlideIndex + (this.currentIndex - firstRealSlideIndex + 1);
+        const offset = firstRealIndex - this.currentIndex - 1;
+        this.currentIndex = lastRealIndex - offset;
       }
     }
   }
