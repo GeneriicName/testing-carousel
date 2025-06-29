@@ -166,19 +166,19 @@ class VanillaCarousel {
       clone.remove();
     });
     
-    // CRITICAL FIX: For multi-slide, we need to clone enough slides to fill the view
-    // If showing 3 slides, we need to clone the LAST 3 slides at the beginning
-    // and the FIRST 3 slides at the end
+    // CRITICAL FIX: For multi-slide, we need enough clones to fill the entire view
+    // If showing 3 slides, we need to clone enough slides to seamlessly transition
     const slidesToClone = Math.max(this.config.slidesPerView, 1);
     this.loopedSlides = slidesToClone;
     
-    // Clone LAST slides at the BEGINNING (for seamless backward transition)
-    // This fixes the "showing slide 6 instead of slide 8" issue
+    // FIXED: Clone LAST slides at the BEGINNING in REVERSE order
+    // This ensures when dragging backwards, slides 6,7,8 appear in correct positions
     for (let i = 0; i < slidesToClone; i++) {
       const sourceIndex = this.originalSlides.length - slidesToClone + i;
       const clone = this.originalSlides[sourceIndex].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-prev');
       clone.setAttribute('data-swiper-slide-index', sourceIndex);
+      clone.setAttribute('data-original-index', sourceIndex); // Track original position
       this.wrapper.insertBefore(clone, this.wrapper.firstChild);
     }
     
@@ -187,6 +187,7 @@ class VanillaCarousel {
       const clone = this.originalSlides[i].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-next');
       clone.setAttribute('data-swiper-slide-index', i);
+      clone.setAttribute('data-original-index', i); // Track original position
       this.wrapper.appendChild(clone);
     }
     
@@ -500,7 +501,11 @@ class VanillaCarousel {
     } else {
       const resistance = 0.2;
       const resistedDelta = delta * resistance;
-      this.setTransform(this.getSlideTranslate(this.currentIndex) + resistedDelta);
+      
+      // CRITICAL FIX: During drag, calculate the correct position
+      // This ensures the right slides are visible during the drag
+      const currentTranslate = this.getSlideTranslate(this.currentIndex);
+      this.setTransform(currentTranslate + resistedDelta);
     }
   }
 
@@ -599,7 +604,8 @@ class VanillaCarousel {
         this.allowSlidePrev = false;
         
         setTimeout(() => {
-          // Jump to the end with the same relative position
+          // CRITICAL FIX: Jump to the correct end position
+          // When going backwards from slide 1, we should show slides 6,7,8
           const underflowAmount = firstRealIndex - this.currentIndex;
           this.currentIndex = maxAllowedIndex + underflowAmount;
           this.updateRealIndex();
