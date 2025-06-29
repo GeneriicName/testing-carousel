@@ -61,30 +61,24 @@
   -ms-user-select: none;
 }
 
-/* Multi-slide specific sizing - IMPROVED CALCULATION */
+/* FIXED: Multi-slide specific sizing */
 .carousel-multi-slide .carousel-slide {
-  width: calc((100% - (var(--space-between, 0px) * (var(--slides-per-view, 1) - 1))) / var(--slides-per-view, 1));
+  /* Use CSS variable for precise width calculation */
+  width: var(--slide-width, calc((100% - (var(--space-between, 0px) * (var(--slides-per-view, 1) - 1))) / var(--slides-per-view, 1)));
   margin-right: var(--space-between, 0px);
   flex-shrink: 0;
-  /* Ensure slides don't get cut off */
-  min-width: 0;
+  min-width: 0; /* Prevent flex item from growing */
 }
 
-/* Remove margin from last visible slide to prevent cutting */
-.carousel-multi-slide .carousel-slide:nth-child(n) {
-  margin-right: var(--space-between, 0px);
-}
-
-/* FIXED: Better wrapper sizing for multi-slide */
-.carousel-multi-slide .carousel-wrapper {
-  /* Don't add extra width that causes cutting */
-  width: 100%;
+/* Remove margin from the last slide in view to prevent overflow */
+.carousel-multi-slide .carousel-slide:last-child {
   margin-right: 0;
 }
 
-/* Alternative calculation using CSS custom property if set */
-.carousel-multi-slide .carousel-slide {
-  width: var(--calculated-slide-width, calc((100% - (var(--space-between, 0px) * (var(--slides-per-view, 1) - 1))) / var(--slides-per-view, 1)));
+/* FIXED: Wrapper sizing for multi-slide - no extra width */
+.carousel-multi-slide .carousel-wrapper {
+  width: 100%;
+  margin-right: 0;
 }
 
 .carousel-slide img {
