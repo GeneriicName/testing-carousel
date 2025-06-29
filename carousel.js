@@ -117,6 +117,9 @@ class VanillaCarousel {
       this.container.classList.add('carousel-grab');
     }
     
+    // Calculate actual slides per view based on container size
+    this.calculateSlidesPerView();
+    
     // Add multi-slide class and CSS variables for proper spacing
     if (this.config.slidesPerView > 1) {
       this.container.classList.add('carousel-multi-slide');
@@ -146,20 +149,54 @@ class VanillaCarousel {
     this.createPagination();
   }
 
+  calculateSlidesPerView() {
+    // Get container width
+    const containerWidth = this.getContainerSize();
+    
+    // If slidesPerView is 'auto', calculate how many slides can fit
+    if (this.config.slidesPerView === 'auto') {
+      // Assume minimum slide width of 200px for auto calculation
+      const minSlideWidth = 200;
+      const availableWidth = containerWidth - (this.config.spaceBetween * 2);
+      this.config.slidesPerView = Math.floor(availableWidth / (minSlideWidth + this.config.spaceBetween));
+      this.config.slidesPerView = Math.max(1, this.config.slidesPerView);
+    }
+    
+    // Ensure we don't show more slides than available (unless looping)
+    if (!this.config.loop) {
+      this.config.slidesPerView = Math.min(this.config.slidesPerView, this.originalSlides.length);
+    }
+    
+    // Calculate actual slide width to prevent cutting
+    if (this.config.slidesPerView > 1) {
+      const totalSpacing = this.config.spaceBetween * (this.config.slidesPerView - 1);
+      const slideWidth = (containerWidth - totalSpacing) / this.config.slidesPerView;
+      
+      // Ensure slides fit properly by adjusting container if needed
+      this.container.style.setProperty('--calculated-slide-width', slideWidth + 'px');
+    }
+  }
+
   createLoopSlides() {
-    // Calculate how many slides to clone
-    const slidesToClone = Math.max(this.config.slidesPerView, 1);
+    // Calculate how many slides to clone - use slidesPerView for better transitions
+    const slidesToClone = Math.max(this.config.slidesPerView * 2, 2);
     this.loopedSlides = slidesToClone;
     
-    // Clone slides at the beginning (last slides)
-    for (let i = this.originalSlides.length - slidesToClone; i < this.originalSlides.length; i++) {
-      const clone = this.originalSlides[i].cloneNode(true);
+    // Clear existing clones
+    this.wrapper.querySelectorAll('.carousel-slide-duplicate-prev, .carousel-slide-duplicate-next').forEach(clone => {
+      clone.remove();
+    });
+    
+    // Clone slides at the beginning (last slides) - FIXED ORDER
+    for (let i = 0; i < slidesToClone; i++) {
+      const sourceIndex = this.originalSlides.length - slidesToClone + i;
+      const clone = this.originalSlides[sourceIndex].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-prev');
-      clone.setAttribute('data-swiper-slide-index', i);
+      clone.setAttribute('data-swiper-slide-index', sourceIndex);
       this.wrapper.insertBefore(clone, this.wrapper.firstChild);
     }
     
-    // Clone slides at the end (first slides)
+    // Clone slides at the end (first slides) - FIXED ORDER
     for (let i = 0; i < slidesToClone; i++) {
       const clone = this.originalSlides[i].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-next');
@@ -421,6 +458,7 @@ class VanillaCarousel {
 
   onResize() {
     this.updateBreakpoint();
+    this.calculateSlidesPerView();
     this.goToSlide(this.currentIndex, false);
   }
 
@@ -440,6 +478,9 @@ class VanillaCarousel {
     if (activeBreakpoint) {
       Object.assign(this.config, activeBreakpoint);
       
+      // Recalculate slides per view
+      this.calculateSlidesPerView();
+      
       // Update CSS variables for multi-slide
       if (this.config.slidesPerView > 1) {
         this.container.classList.add('carousel-multi-slide');
@@ -447,6 +488,12 @@ class VanillaCarousel {
         this.container.style.setProperty('--space-between', this.config.spaceBetween + 'px');
       } else {
         this.container.classList.remove('carousel-multi-slide');
+      }
+      
+      // Recreate loop slides if needed
+      if (this.config.loop && this.originalSlides.length > 1) {
+        this.createLoopSlides();
+        this.slides = Array.from(this.wrapper.children);
       }
     }
   }
@@ -515,7 +562,7 @@ class VanillaCarousel {
     this.currentIndex = index;
     this.updateRealIndex();
     
-    // Handle loop transitions
+    // Handle loop transitions - IMPROVED LOGIC
     if (this.config.loop) {
       this.handleLoopTransition(animated);
     }
@@ -539,15 +586,17 @@ class VanillaCarousel {
     const lastRealSlideIndex = totalSlides - this.loopedSlides - 1;
     const firstRealSlideIndex = this.loopedSlides;
     
-    // Going forward past the last real slide
+    // FIXED: Better loop transition logic
     if (this.currentIndex > lastRealSlideIndex) {
+      // Going forward past the last real slide
       if (animated) {
-        // Allow the animation to complete, then jump to the beginning
         this.allowSlideNext = false;
         this.allowSlidePrev = false;
         
         setTimeout(() => {
-          this.currentIndex = firstRealSlideIndex;
+          // Jump to the equivalent position at the beginning
+          const overflowAmount = this.currentIndex - lastRealSlideIndex;
+          this.currentIndex = firstRealSlideIndex + overflowAmount - 1;
           this.updateRealIndex();
           this.updateSlides(false);
           this.updatePagination();
@@ -555,18 +604,19 @@ class VanillaCarousel {
           this.allowSlidePrev = true;
         }, this.config.speed);
       } else {
-        this.currentIndex = firstRealSlideIndex;
+        const overflowAmount = this.currentIndex - lastRealSlideIndex;
+        this.currentIndex = firstRealSlideIndex + overflowAmount - 1;
       }
-    }
-    // Going backward past the first real slide
-    else if (this.currentIndex < firstRealSlideIndex) {
+    } else if (this.currentIndex < firstRealSlideIndex) {
+      // Going backward past the first real slide
       if (animated) {
-        // Allow the animation to complete, then jump to the end
         this.allowSlideNext = false;
         this.allowSlidePrev = false;
         
         setTimeout(() => {
-          this.currentIndex = lastRealSlideIndex;
+          // Jump to the equivalent position at the end
+          const underflowAmount = firstRealSlideIndex - this.currentIndex;
+          this.currentIndex = lastRealSlideIndex - underflowAmount + 1;
           this.updateRealIndex();
           this.updateSlides(false);
           this.updatePagination();
@@ -574,7 +624,8 @@ class VanillaCarousel {
           this.allowSlidePrev = true;
         }, this.config.speed);
       } else {
-        this.currentIndex = lastRealSlideIndex;
+        const underflowAmount = firstRealSlideIndex - this.currentIndex;
+        this.currentIndex = lastRealSlideIndex - underflowAmount + 1;
       }
     }
   }
@@ -584,13 +635,14 @@ class VanillaCarousel {
       let realIndex = this.currentIndex - this.loopedSlides;
       
       // Normalize the real index
-      if (realIndex < 0) {
-        realIndex = this.originalSlides.length + realIndex;
-      } else if (realIndex >= this.originalSlides.length) {
-        realIndex = realIndex % this.originalSlides.length;
+      while (realIndex < 0) {
+        realIndex += this.originalSlides.length;
+      }
+      while (realIndex >= this.originalSlides.length) {
+        realIndex -= this.originalSlides.length;
       }
       
-      this.realIndex = Math.max(0, Math.min(realIndex, this.originalSlides.length - 1));
+      this.realIndex = realIndex;
     } else {
       this.realIndex = this.currentIndex;
     }
@@ -835,6 +887,7 @@ class VanillaCarousel {
   // Public API methods
   update() {
     this.updateBreakpoint();
+    this.calculateSlidesPerView();
     this.goToSlide(this.currentIndex, false);
     this.updatePagination();
   }

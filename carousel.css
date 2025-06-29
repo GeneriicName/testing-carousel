@@ -61,20 +61,30 @@
   -ms-user-select: none;
 }
 
-/* Multi-slide specific sizing - FIXED */
+/* Multi-slide specific sizing - IMPROVED CALCULATION */
 .carousel-multi-slide .carousel-slide {
   width: calc((100% - (var(--space-between, 0px) * (var(--slides-per-view, 1) - 1))) / var(--slides-per-view, 1));
   margin-right: var(--space-between, 0px);
   flex-shrink: 0;
+  /* Ensure slides don't get cut off */
+  min-width: 0;
 }
 
+/* Remove margin from last visible slide to prevent cutting */
 .carousel-multi-slide .carousel-slide:nth-child(n) {
   margin-right: var(--space-between, 0px);
 }
 
+/* FIXED: Better wrapper sizing for multi-slide */
 .carousel-multi-slide .carousel-wrapper {
-  width: calc(100% + var(--space-between, 0px));
-  margin-right: calc(-1 * var(--space-between, 0px));
+  /* Don't add extra width that causes cutting */
+  width: 100%;
+  margin-right: 0;
+}
+
+/* Alternative calculation using CSS custom property if set */
+.carousel-multi-slide .carousel-slide {
+  width: var(--calculated-slide-width, calc((100% - (var(--space-between, 0px) * (var(--slides-per-view, 1) - 1))) / var(--slides-per-view, 1)));
 }
 
 .carousel-slide img {
@@ -453,6 +463,12 @@
   .carousel-pagination-bullet {
     width: 10px;
     height: 10px;
+  }
+  
+  /* IMPROVED: Better multi-slide responsive behavior */
+  .carousel-multi-slide .carousel-slide {
+    /* Ensure slides don't get too small on mobile */
+    min-width: 150px;
   }
 }
 
