@@ -37,6 +37,9 @@
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  /* CRITICAL: Hardware acceleration for smooth transitions */
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
 }
 
 .carousel-vertical .carousel-wrapper {
@@ -61,21 +64,22 @@
   -ms-user-select: none;
 }
 
-/* FIXED: Multi-slide specific sizing */
+/* ENHANCED: Multi-slide specific sizing with precise calculations */
 .carousel-multi-slide .carousel-slide {
   /* Use CSS variable for precise width calculation */
   width: var(--slide-width, calc((100% - (var(--space-between, 0px) * (var(--slides-per-view, 1) - 1))) / var(--slides-per-view, 1)));
   margin-right: var(--space-between, 0px);
   flex-shrink: 0;
   min-width: 0; /* Prevent flex item from growing */
+  box-sizing: border-box;
 }
 
-/* Remove margin from the last slide in view to prevent overflow */
+/* FIXED: Proper spacing management for multi-slide */
 .carousel-multi-slide .carousel-slide:last-child {
   margin-right: 0;
 }
 
-/* FIXED: Wrapper sizing for multi-slide - no extra width */
+/* ENHANCED: Wrapper sizing for multi-slide - precise width calculation */
 .carousel-multi-slide .carousel-wrapper {
   width: 100%;
   margin-right: 0;
@@ -459,7 +463,7 @@
     height: 10px;
   }
   
-  /* IMPROVED: Better multi-slide responsive behavior */
+  /* ENHANCED: Better multi-slide responsive behavior */
   .carousel-multi-slide .carousel-slide {
     /* Ensure slides don't get too small on mobile */
     min-width: 150px;
@@ -605,7 +609,7 @@
   100% { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
-/* Smooth animations */
+/* ENHANCED: Smooth animations with hardware acceleration */
 .carousel-wrapper {
   will-change: transform;
 }

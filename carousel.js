@@ -72,10 +72,11 @@ class VanillaCarousel {
     this.allowSlidePrev = true;
     this.isLoopTransitioning = false;
     
-    // CRITICAL: Buffer zones for smooth infinite scrolling
+    // CRITICAL: Enhanced buffer system for smooth infinite scrolling
     this.bufferSize = 0;
     this.slideWidth = 0;
     this.containerWidth = 0;
+    this.totalSlides = 0;
     
     this.init();
   }
@@ -144,6 +145,7 @@ class VanillaCarousel {
     }
     
     this.slides = Array.from(this.wrapper.children);
+    this.totalSlides = this.slides.length;
     
     // Create navigation
     this.createNavigation();
@@ -182,14 +184,14 @@ class VanillaCarousel {
       clone.remove();
     });
     
-    // CRITICAL: Calculate buffer size for seamless infinite scrolling
-    // We need enough clones to handle the maximum visible slides plus buffer
-    this.bufferSize = Math.max(this.config.slidesPerView * 2, 3);
+    // CRITICAL: Enhanced buffer calculation for seamless infinite scrolling
+    // Buffer must be large enough to handle all transition scenarios
+    this.bufferSize = Math.max(this.config.slidesPerView * 2, this.originalSlides.length);
     this.loopedSlides = this.bufferSize;
     
-    // Clone LAST slides at the BEGINNING (for backwards transition)
+    // Clone LAST slides at the BEGINNING (for smooth backwards transition)
     for (let i = 0; i < this.bufferSize; i++) {
-      const sourceIndex = this.originalSlides.length - this.bufferSize + i;
+      const sourceIndex = (this.originalSlides.length - this.bufferSize + i + this.originalSlides.length) % this.originalSlides.length;
       const clone = this.originalSlides[sourceIndex].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-prev');
       clone.setAttribute('data-swiper-slide-index', sourceIndex);
@@ -198,12 +200,13 @@ class VanillaCarousel {
       this.wrapper.insertBefore(clone, this.wrapper.firstChild);
     }
     
-    // Clone FIRST slides at the END (for forward transition)
+    // Clone FIRST slides at the END (for smooth forward transition)
     for (let i = 0; i < this.bufferSize; i++) {
-      const clone = this.originalSlides[i].cloneNode(true);
+      const sourceIndex = i % this.originalSlides.length;
+      const clone = this.originalSlides[sourceIndex].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-next');
-      clone.setAttribute('data-swiper-slide-index', i);
-      clone.setAttribute('data-original-index', i);
+      clone.setAttribute('data-swiper-slide-index', sourceIndex);
+      clone.setAttribute('data-original-index', sourceIndex);
       clone.setAttribute('data-clone-type', 'next');
       this.wrapper.appendChild(clone);
     }
@@ -489,6 +492,7 @@ class VanillaCarousel {
       if (this.config.loop && this.originalSlides.length > 1) {
         this.createLoopSlides();
         this.slides = Array.from(this.wrapper.children);
+        this.totalSlides = this.slides.length;
       }
     }
   }
@@ -581,29 +585,23 @@ class VanillaCarousel {
   }
 
   handleLoopTransition(animated) {
+    if (!animated) return;
+    
     const realSlidesCount = this.originalSlides.length;
     const firstRealIndex = this.loopedSlides;
     const lastRealIndex = firstRealIndex + realSlidesCount - 1;
     
-    // CRITICAL: Calculate the boundaries for smooth infinite scrolling
+    // Calculate viewable boundaries based on slidesPerView
     const maxViewableIndex = lastRealIndex - this.config.slidesPerView + 1;
     const minViewableIndex = firstRealIndex;
     
     // FORWARD TRANSITION: Going past the last viewable slide
     if (this.currentIndex > maxViewableIndex) {
-      if (animated) {
-        this.performLoopTransition('forward', minViewableIndex);
-      } else {
-        this.currentIndex = minViewableIndex;
-      }
+      this.performLoopTransition('forward', minViewableIndex);
     }
-    // BACKWARD TRANSITION: Going before the first viewable slide
+    // BACKWARD TRANSITION: Going before the first viewable slide  
     else if (this.currentIndex < minViewableIndex) {
-      if (animated) {
-        this.performLoopTransition('backward', maxViewableIndex);
-      } else {
-        this.currentIndex = maxViewableIndex;
-      }
+      this.performLoopTransition('backward', maxViewableIndex);
     }
   }
 
@@ -613,38 +611,45 @@ class VanillaCarousel {
     this.allowSlidePrev = false;
     
     if (direction === 'backward') {
-      // CRITICAL FIX: For backwards transition, pre-position correctly
-      // When going from slide 0 backwards, we want to show slides [6,7,0] -> [7,0,1]
+      // CRITICAL FIX: Perfect backwards transition
+      // When going from slide 0 backwards, show slides [6,7,0] -> [7,0,1]
       
-      // Step 1: Instantly position to show the correct slides in the duplicate area
+      // Step 1: Calculate the correct pre-position in the duplicate area
+      // We want to position so that the visible slides are [6,7,0]
+      const duplicateAreaStartIndex = this.loopedSlides + this.originalSlides.length;
+      const prePositionIndex = duplicateAreaStartIndex + (targetIndex - this.loopedSlides);
+      
+      // Step 2: Instantly position to show the correct slides without animation
       this.wrapper.style.transitionDuration = '0ms';
-      
-      // Position to show the target slides from the duplicate area
-      const duplicateAreaIndex = targetIndex + this.originalSlides.length;
-      this.currentIndex = duplicateAreaIndex;
+      this.currentIndex = prePositionIndex;
       this.setTransform(this.getSlideTranslate(this.currentIndex));
       
-      // Force reflow
+      // Force reflow to ensure the position is applied
       this.wrapper.offsetHeight;
       
-      // Step 2: Animate to the final position
+      // Step 3: Animate smoothly to the final position
       requestAnimationFrame(() => {
         this.wrapper.style.transitionDuration = `${this.config.speed}ms`;
         this.currentIndex = targetIndex;
         this.updateRealIndex();
         this.setTransform(this.getSlideTranslate(this.currentIndex));
         
+        // Clean up after animation completes
         setTimeout(() => {
           this.finishLoopTransition();
         }, this.config.speed);
       });
     } else {
-      // Forward transition (existing logic)
+      // FORWARD TRANSITION: Standard forward loop
+      // Allow animation to complete, then jump to beginning
       setTimeout(() => {
+        this.wrapper.style.transitionDuration = '0ms';
         this.currentIndex = targetIndex;
         this.updateRealIndex();
-        this.updateSlides(false);
-        this.updatePagination();
+        this.setTransform(this.getSlideTranslate(this.currentIndex));
+        
+        // Force reflow and restore transitions
+        this.wrapper.offsetHeight;
         this.finishLoopTransition();
       }, this.config.speed);
     }
@@ -656,6 +661,7 @@ class VanillaCarousel {
     this.isLoopTransitioning = false;
     this.wrapper.style.transitionDuration = '';
     this.updatePagination();
+    this.updateSlides(false);
   }
 
   updateRealIndex() {
@@ -663,7 +669,7 @@ class VanillaCarousel {
       // Calculate real index based on the first visible slide
       let realIndex = this.currentIndex - this.loopedSlides;
       
-      // Normalize the real index
+      // Normalize the real index to be within bounds
       const realSlidesCount = this.originalSlides.length;
       while (realIndex < 0) {
         realIndex += realSlidesCount;
