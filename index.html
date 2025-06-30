@@ -5,7 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vanilla Carousel - Full Featured Demo</title>
-    <link rel="stylesheet" href="carousel.css">
+    <link rel="stylesheet" href="/carousel.css">
     <style>
       * {
         margin: 0;
@@ -40,7 +40,7 @@
         background: white;
         border-radius: 20px;
         padding: 30px;
-        margin-bottom: 80px; /* Increased margin for pagination space */
+        margin-bottom: 80px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         position: relative;
       }
@@ -58,7 +58,6 @@
         border-radius: 15px;
         overflow: hidden;
         box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-        /* Removed margin - now handled by specific carousel IDs */
       }
       
       .demo-slide {
@@ -118,10 +117,6 @@
         box-shadow: 0 5px 15px rgba(0,0,0,0.2);
       }
       
-      .btn:active {
-        transform: translateY(0);
-      }
-      
       .thumbnails-demo {
         height: 300px;
       }
@@ -174,10 +169,8 @@
       
       .grid-demo .carousel-demo {
         height: 250px;
-        /* No margin override needed */
       }
       
-      /* Multi-slide demo specific styles */
       .multi-slide {
         margin: 0 5px;
         border-radius: 10px;
@@ -443,7 +436,7 @@
       </div>
     </div>
     
-    <script src="carousel.js"></script>
-    <script src="main.js"></script>
+    <script src="/carousel.js"></script>
+    <script src="/main.js"></script>
   </body>
 </html>
