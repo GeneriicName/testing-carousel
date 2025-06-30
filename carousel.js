@@ -27,13 +27,13 @@ class VanillaCarousel {
       lazy: false,
       zoom: false,
       parallax: false,
-
+      
       // Navigation
       navigation: {
         nextEl: null,
         prevEl: null,
       },
-
+      
       // Pagination
       pagination: {
         el: null,
@@ -41,13 +41,13 @@ class VanillaCarousel {
         clickable: true,
         dynamicBullets: false,
       },
-
+      
       // Breakpoints
       breakpoints: {},
-
+      
       // Callbacks
       on: {},
-
+      
       ...options
     };
 
@@ -70,7 +70,7 @@ class VanillaCarousel {
     this.isKeyboardFocused = false;
     this.allowSlideNext = true;
     this.allowSlidePrev = true;
-
+    
     this.init();
   }
 
@@ -79,11 +79,11 @@ class VanillaCarousel {
     this.bindEvents();
     this.updateBreakpoint();
     this.goToSlide(this.config.loop ? this.loopedSlides : 0, false);
-
+    
     if (this.config.autoplay) {
       this.startAutoplay();
     }
-
+    
     this.emit('init');
   }
 
@@ -93,76 +93,71 @@ class VanillaCarousel {
     if (!wrapper) {
       wrapper = document.createElement('div');
       wrapper.className = 'carousel-wrapper';
-
+      
       // Move existing children to wrapper
       while (this.container.firstChild) {
         wrapper.appendChild(this.container.firstChild);
       }
-
+      
       this.container.appendChild(wrapper);
     }
-
+    
     this.wrapper = wrapper;
     this.originalSlides = Array.from(this.wrapper.children);
-
+    
     // Add classes
     this.container.classList.add('vanilla-carousel');
     this.container.classList.add(`carousel-${this.config.direction}`);
-
+    
     if (this.config.effect !== 'slide') {
       this.container.classList.add(`carousel-effect-${this.config.effect}`);
     }
-
+    
     if (this.config.grabCursor) {
       this.container.classList.add('carousel-grab');
     }
-
+    
     // Add multi-slide class and CSS variables for proper spacing
     if (this.config.slidesPerView > 1) {
       this.container.classList.add('carousel-multi-slide');
       this.container.style.setProperty('--slides-per-view', this.config.slidesPerView);
       this.container.style.setProperty('--space-between', this.config.spaceBetween + 'px');
     }
-
+    
     // Prepare slides
     this.originalSlides.forEach((slide, index) => {
       slide.classList.add('carousel-slide');
       slide.setAttribute('data-slide-index', index);
-
+      
       if (this.config.lazy) {
         this.setupLazyLoading(slide);
       }
     });
-
+    
     // Create loop duplicates if needed
     if (this.config.loop && this.originalSlides.length > 1) {
       this.createLoopSlides();
     }
-
+    
     this.slides = Array.from(this.wrapper.children);
-
+    
     // Create navigation
     this.createNavigation();
     this.createPagination();
   }
-  // this is the checkpoint 
 
-  createLoopSlides() {
-    // For seamless loop, we need enough slides to cover the viewport
+  createLoopSlides() {]
     const slidesToClone = Math.max(this.config.slidesPerView, 1);
     this.loopedSlides = slidesToClone;
-
-    // Clone slides at the beginning (last slides in correct order)
-    // If we have slides [0,1,2,3,4,5,6,7] and clone 1 slide,
-    // we want slide 7 to appear before slide 0
-    for (let i = 0; i < slidesToClone; i++) {
-      const sourceIndex = this.originalSlides.length - slidesToClone + i;
-      const clone = this.originalSlides[sourceIndex].cloneNode(true);
+    
+    // Clone slides at the beginning (last slides)
+    for (let i = this.originalSlides.length - slidesToClone; i < this.originalSlides.length; i++) {
+      const clone = this.originalSlides[i].cloneNode(true);
       clone.classList.add('carousel-slide-duplicate-prev');
-      clone.setAttribute('data-swiper-slide-index', sourceIndex);
+      clone.setAttribute('data-swiper-slide-index', i);
       this.wrapper.insertBefore(clone, this.wrapper.firstChild);
     }
-
+    
     // Clone slides at the end (first slides)
     for (let i = 0; i < slidesToClone; i++) {
       const clone = this.originalSlides[i].cloneNode(true);
@@ -170,7 +165,7 @@ class VanillaCarousel {
       clone.setAttribute('data-swiper-slide-index', i);
       this.wrapper.appendChild(clone);
     }
-
+    
     // Set initial position to first real slide
     this.currentIndex = this.loopedSlides;
     this.realIndex = 0;
@@ -178,20 +173,20 @@ class VanillaCarousel {
 
   createNavigation() {
     if (this.config.navigation.nextEl || this.config.navigation.prevEl) {
-      this.nextButton = typeof this.config.navigation.nextEl === 'string'
+      this.nextButton = typeof this.config.navigation.nextEl === 'string' 
         ? document.querySelector(this.config.navigation.nextEl)
         : this.config.navigation.nextEl;
-
+        
       this.prevButton = typeof this.config.navigation.prevEl === 'string'
         ? document.querySelector(this.config.navigation.prevEl)
         : this.config.navigation.prevEl;
-
+        
       if (this.nextButton) {
         this.nextButton.classList.add('carousel-button-next');
         this.nextButton.setAttribute('aria-label', 'Next slide');
         this.nextButton.setAttribute('tabindex', '0');
       }
-
+      
       if (this.prevButton) {
         this.prevButton.classList.add('carousel-button-prev');
         this.prevButton.setAttribute('aria-label', 'Previous slide');
@@ -205,7 +200,7 @@ class VanillaCarousel {
       this.paginationEl = typeof this.config.pagination.el === 'string'
         ? document.querySelector(this.config.pagination.el)
         : this.config.pagination.el;
-
+        
       if (this.paginationEl) {
         this.paginationEl.classList.add('carousel-pagination');
         this.paginationEl.classList.add(`carousel-pagination-${this.config.pagination.type}`);
@@ -219,34 +214,34 @@ class VanillaCarousel {
     this.container.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
     this.container.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
     this.container.addEventListener('touchend', this.onTouchEnd.bind(this), { passive: true });
-
+    
     // Mouse events
     this.container.addEventListener('mousedown', this.onMouseDown.bind(this));
     document.addEventListener('mousemove', this.onMouseMove.bind(this));
     document.addEventListener('mouseup', this.onMouseUp.bind(this));
-
+    
     // Keyboard events with focus management
     this.container.addEventListener('focus', () => {
       this.isKeyboardFocused = true;
     });
-
+    
     this.container.addEventListener('blur', () => {
       this.isKeyboardFocused = false;
     });
-
+    
     if (this.config.keyboard) {
       this.container.addEventListener('keydown', this.onKeyDown.bind(this));
       this.container.setAttribute('tabindex', '0');
     }
-
+    
     // Mouse wheel
     if (this.config.mousewheel) {
       this.container.addEventListener('wheel', this.onMouseWheel.bind(this), { passive: false });
     }
-
+    
     // Window resize
     window.addEventListener('resize', this.onResize.bind(this));
-
+    
     // Navigation buttons
     if (this.nextButton) {
       this.nextButton.addEventListener('click', () => this.slideNext());
@@ -257,7 +252,7 @@ class VanillaCarousel {
         }
       });
     }
-
+    
     if (this.prevButton) {
       this.prevButton.addEventListener('click', () => this.slidePrev());
       this.prevButton.addEventListener('keydown', (e) => {
@@ -267,7 +262,7 @@ class VanillaCarousel {
         }
       });
     }
-
+    
     // Autoplay pause on hover
     if (this.config.autoplay) {
       this.container.addEventListener('mouseenter', () => this.pauseAutoplay());
@@ -277,7 +272,7 @@ class VanillaCarousel {
 
   onTouchStart(e) {
     if (this.isTransitioning) return;
-
+    
     const touch = e.touches[0];
     this.touchStartX = touch.clientX;
     this.touchStartY = touch.clientY;
@@ -288,46 +283,46 @@ class VanillaCarousel {
     this.dragStartTime = Date.now();
     this.velocity = 0;
     this.lastTouchTime = this.dragStartTime;
-
+    
     this.pauseAutoplay();
     this.container.classList.add('carousel-dragging');
-
+    
     // Prevent default to avoid scrolling
     e.preventDefault();
   }
 
   onTouchMove(e) {
     if (!this.isDragging) return;
-
+    
     e.preventDefault();
-
+    
     const touch = e.touches[0];
     this.touchCurrentX = touch.clientX;
     this.touchCurrentY = touch.clientY;
-
+    
     const currentTime = Date.now();
     const timeDiff = currentTime - this.lastTouchTime;
-
+    
     if (timeDiff > 0) {
       const deltaX = this.touchCurrentX - this.lastTouchX;
       this.velocity = deltaX / timeDiff;
       this.lastTouchX = this.touchCurrentX;
       this.lastTouchTime = currentTime;
     }
-
+    
     this.updateSlidePosition();
   }
 
   onTouchEnd(e) {
     if (!this.isDragging) return;
-
+    
     this.isDragging = false;
     this.container.classList.remove('carousel-dragging');
-
+    
     const deltaX = this.touchCurrentX - this.touchStartX;
     const deltaY = this.touchCurrentY - this.touchStartY;
     const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
-
+    
     if (this.config.direction === 'horizontal' && isHorizontal) {
       this.handleSwipe(deltaX);
     } else if (this.config.direction === 'vertical' && !isHorizontal) {
@@ -335,7 +330,7 @@ class VanillaCarousel {
     } else {
       this.goToSlide(this.currentIndex);
     }
-
+    
     if (this.config.autoplay) {
       this.startAutoplay();
     }
@@ -343,7 +338,7 @@ class VanillaCarousel {
 
   onMouseDown(e) {
     if (e.button !== 0) return; // Only left mouse button
-
+    
     e.preventDefault();
     this.onTouchStart({
       touches: [{ clientX: e.clientX, clientY: e.clientY }],
@@ -353,24 +348,24 @@ class VanillaCarousel {
 
   onMouseMove(e) {
     if (!this.isDragging) return;
-
+    
     this.onTouchMove({
       touches: [{ clientX: e.clientX, clientY: e.clientY }],
-      preventDefault: () => { }
+      preventDefault: () => {}
     });
   }
 
   onMouseUp(e) {
     if (!this.isDragging) return;
-
+    
     this.onTouchEnd({});
   }
 
   onKeyDown(e) {
     if (!this.isKeyboardFocused && !this.container.contains(document.activeElement)) return;
-
+    
     let handled = false;
-
+    
     switch (e.key) {
       case 'ArrowLeft':
         if (this.config.direction === 'horizontal') {
@@ -405,7 +400,7 @@ class VanillaCarousel {
         handled = true;
         break;
     }
-
+    
     if (handled) {
       e.preventDefault();
     }
@@ -413,7 +408,7 @@ class VanillaCarousel {
 
   onMouseWheel(e) {
     e.preventDefault();
-
+    
     if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
       if (e.deltaY > 0) {
         this.slideNext();
@@ -431,7 +426,7 @@ class VanillaCarousel {
   updateBreakpoint() {
     const width = window.innerWidth;
     let activeBreakpoint = null;
-
+    
     Object.keys(this.config.breakpoints)
       .map(Number)
       .sort((a, b) => a - b)
@@ -440,10 +435,10 @@ class VanillaCarousel {
           activeBreakpoint = this.config.breakpoints[breakpoint];
         }
       });
-
+    
     if (activeBreakpoint) {
       Object.assign(this.config, activeBreakpoint);
-
+      
       // Update CSS variables for multi-slide
       if (this.config.slidesPerView > 1) {
         this.container.classList.add('carousel-multi-slide');
@@ -458,7 +453,7 @@ class VanillaCarousel {
   handleSwipe(delta) {
     const threshold = 50;
     const velocity = Math.abs(this.velocity);
-
+    
     if (Math.abs(delta) > threshold || velocity > 0.3) {
       if (delta > 0) {
         this.slidePrev();
@@ -474,7 +469,7 @@ class VanillaCarousel {
     const deltaX = this.touchCurrentX - this.touchStartX;
     const deltaY = this.touchCurrentY - this.touchStartY;
     const delta = this.config.direction === 'horizontal' ? deltaX : deltaY;
-
+    
     if (this.config.freeMode) {
       this.setTransform(this.getTranslate() + delta);
     } else {
@@ -486,7 +481,7 @@ class VanillaCarousel {
 
   slideNext() {
     if (this.isTransitioning || !this.allowSlideNext) return;
-
+    
     if (this.config.loop) {
       this.goToSlide(this.currentIndex + 1);
     } else {
@@ -499,7 +494,7 @@ class VanillaCarousel {
 
   slidePrev() {
     if (this.isTransitioning || !this.allowSlidePrev) return;
-
+    
     if (this.config.loop) {
       this.goToSlide(this.currentIndex - 1);
     } else {
@@ -512,23 +507,26 @@ class VanillaCarousel {
 
   goToSlide(index, animated = true) {
     if (this.isTransitioning && animated) return;
-
+    
     const prevIndex = this.currentIndex;
     const prevRealIndex = this.realIndex;
-
+    
     this.currentIndex = index;
     this.updateRealIndex();
-
-    // Don't call handleLoopTransition here - let updateSlides handle everything
-
+    
+    // Handle loop transitions
+    if (this.config.loop) {
+      this.handleLoopTransition(animated);
+    }
+    
     this.updateSlides(animated);
     this.updateNavigation();
     this.updatePagination();
-
+    
     if (prevRealIndex !== this.realIndex) {
-      this.emit('slideChange', {
-        from: prevIndex,
-        to: this.currentIndex,
+      this.emit('slideChange', { 
+        from: prevIndex, 
+        to: this.currentIndex, 
         realIndex: this.realIndex,
         previousRealIndex: prevRealIndex
       });
@@ -536,18 +534,46 @@ class VanillaCarousel {
   }
 
   handleLoopTransition(animated) {
-    // The seamless jumping is now handled in updateSlides/checkSeamlessJump
-    // This method can be simplified or removed entirely
-    const realSlidesCount = this.originalSlides.length;
-    const lastRealSlideIndex = this.loopedSlides + realSlidesCount - 1;
+    const totalSlides = this.slides.length;
+    const lastRealSlideIndex = totalSlides - this.loopedSlides - 1;
     const firstRealSlideIndex = this.loopedSlides;
-
-    // Only handle immediate jumps for non-animated transitions
-    if (!animated) {
-      if (this.currentIndex < firstRealSlideIndex) {
-        this.currentIndex = lastRealSlideIndex + (this.currentIndex - firstRealSlideIndex + 1);
-      } else if (this.currentIndex > lastRealSlideIndex) {
-        this.currentIndex = firstRealSlideIndex + (this.currentIndex - lastRealSlideIndex - 1);
+    
+    // Going forward past the last real slide
+    if (this.currentIndex > lastRealSlideIndex) {
+      if (animated) {
+        // Allow the animation to complete, then jump to the beginning
+        this.allowSlideNext = false;
+        this.allowSlidePrev = false;
+        
+        setTimeout(() => {
+          this.currentIndex = firstRealSlideIndex;
+          this.updateRealIndex();
+          this.updateSlides(false);
+          this.updatePagination();
+          this.allowSlideNext = true;
+          this.allowSlidePrev = true;
+        }, this.config.speed);
+      } else {
+        this.currentIndex = firstRealSlideIndex;
+      }
+    }
+    // Going backward past the first real slide
+    else if (this.currentIndex < firstRealSlideIndex) {
+      if (animated) {
+        // Allow the animation to complete, then jump to the end
+        this.allowSlideNext = false;
+        this.allowSlidePrev = false;
+        
+        setTimeout(() => {
+          this.currentIndex = lastRealSlideIndex;
+          this.updateRealIndex();
+          this.updateSlides(false);
+          this.updatePagination();
+          this.allowSlideNext = true;
+          this.allowSlidePrev = true;
+        }, this.config.speed);
+      } else {
+        this.currentIndex = lastRealSlideIndex;
       }
     }
   }
@@ -555,14 +581,14 @@ class VanillaCarousel {
   updateRealIndex() {
     if (this.config.loop) {
       let realIndex = this.currentIndex - this.loopedSlides;
-
+      
       // Normalize the real index
       if (realIndex < 0) {
         realIndex = this.originalSlides.length + realIndex;
       } else if (realIndex >= this.originalSlides.length) {
         realIndex = realIndex % this.originalSlides.length;
       }
-
+      
       this.realIndex = Math.max(0, Math.min(realIndex, this.originalSlides.length - 1));
     } else {
       this.realIndex = this.currentIndex;
@@ -573,33 +599,25 @@ class VanillaCarousel {
     if (animated) {
       this.isTransitioning = true;
       this.wrapper.style.transitionDuration = `${this.config.speed}ms`;
-
+      
       setTimeout(() => {
         this.isTransitioning = false;
         this.wrapper.style.transitionDuration = '';
-
-        // Handle seamless loop jump AFTER animation completes
-        if (this.config.loop) {
-          this.handleSeamlessJump();
-        }
       }, this.config.speed);
     } else {
       this.wrapper.style.transitionDuration = '0ms';
-      if (this.config.loop) {
-        this.handleSeamlessJump();
-      }
       setTimeout(() => {
         this.wrapper.style.transitionDuration = '';
       }, 0);
     }
-
+    
     this.setTransform(this.getSlideTranslate(this.currentIndex));
-
+    
     // Update slide states
     const allSlides = this.wrapper.children;
     Array.from(allSlides).forEach((slide, index) => {
       slide.classList.remove('carousel-slide-active', 'carousel-slide-prev', 'carousel-slide-next');
-
+      
       if (this.isSlideActive(index)) {
         slide.classList.add('carousel-slide-active');
       } else if (index === this.currentIndex - 1) {
@@ -608,81 +626,10 @@ class VanillaCarousel {
         slide.classList.add('carousel-slide-next');
       }
     });
-
+    
     // Load lazy images for active slides
     if (this.config.lazy) {
       this.loadLazyImages();
-    }
-  }
-
-  handleSeamlessJump() {
-    const realSlidesCount = this.originalSlides.length;
-    const lastRealSlideIndex = this.loopedSlides + realSlidesCount - 1;
-    const firstRealSlideIndex = this.loopedSlides;
-
-    let needsJump = false;
-    let newIndex = this.currentIndex;
-
-    // Check if we're on a duplicate slide and need to jump
-    if (this.currentIndex < firstRealSlideIndex) {
-      // We're on a "before" duplicate, jump to equivalent position at the end
-      const offset = firstRealSlideIndex - this.currentIndex;
-      newIndex = lastRealSlideIndex - offset + 1;
-      needsJump = true;
-    } else if (this.currentIndex > lastRealSlideIndex) {
-      // We're on an "after" duplicate, jump to equivalent position at the beginning  
-      const offset = this.currentIndex - lastRealSlideIndex;
-      newIndex = firstRealSlideIndex + offset - 1;
-      needsJump = true;
-    }
-
-    if (needsJump) {
-      // Use a very brief timeout to ensure the jump is imperceptible
-      setTimeout(() => {
-        this.currentIndex = newIndex;
-        this.updateRealIndex();
-        this.wrapper.style.transitionDuration = '0ms';
-        this.setTransform(this.getSlideTranslate(this.currentIndex));
-        this.updatePagination();
-
-        // Restore transition capability
-        requestAnimationFrame(() => {
-          this.wrapper.style.transitionDuration = '';
-        });
-      }, 1); // Very short delay to make jump imperceptible
-    }
-  }
-
-  checkSeamlessJump() {
-    const realSlidesCount = this.originalSlides.length;
-    const lastRealSlideIndex = this.loopedSlides + realSlidesCount - 1;
-    const firstRealSlideIndex = this.loopedSlides;
-
-    // If we're transitioning to a duplicate slide, jump to the real one mid-transition
-    if (this.currentIndex < firstRealSlideIndex) {
-      // We're going to a "before" duplicate, jump to the real slide at the end
-      setTimeout(() => {
-        const equivalentIndex = lastRealSlideIndex + (this.currentIndex - firstRealSlideIndex + 1);
-        this.currentIndex = equivalentIndex;
-        this.updateRealIndex();
-        this.wrapper.style.transitionDuration = '0ms';
-        this.setTransform(this.getSlideTranslate(this.currentIndex));
-        setTimeout(() => {
-          this.wrapper.style.transitionDuration = '';
-        }, 0);
-      }, this.config.speed * 0.6); // Jump 60% through the transition
-    } else if (this.currentIndex > lastRealSlideIndex) {
-      // We're going to an "after" duplicate, jump to the real slide at the beginning
-      setTimeout(() => {
-        const equivalentIndex = firstRealSlideIndex + (this.currentIndex - lastRealSlideIndex - 1);
-        this.currentIndex = equivalentIndex;
-        this.updateRealIndex();
-        this.wrapper.style.transitionDuration = '0ms';
-        this.setTransform(this.getSlideTranslate(this.currentIndex));
-        setTimeout(() => {
-          this.wrapper.style.transitionDuration = '';
-        }, 0);
-      }, this.config.speed * 0.6); // Jump 60% through the transition
     }
   }
 
@@ -693,19 +640,19 @@ class VanillaCarousel {
   getSlideTranslate(index) {
     const slideSize = this.getSlideSize();
     const spaceBetween = this.config.spaceBetween;
-
+    
     return -(index * (slideSize + spaceBetween));
   }
 
   getSlideSize() {
     const containerSize = this.getContainerSize();
-
+    
     if (this.config.slidesPerView > 1) {
       const spaceBetween = this.config.spaceBetween;
       const totalSpacing = spaceBetween * (this.config.slidesPerView - 1);
       return (containerSize - totalSpacing) / this.config.slidesPerView;
     }
-
+    
     return containerSize;
   }
 
@@ -717,12 +664,12 @@ class VanillaCarousel {
   getTranslate() {
     const transform = this.wrapper.style.transform;
     const match = transform.match(/translate(?:3d|X|Y)?\(([^)]+)\)/);
-
+    
     if (match) {
       const values = match[1].split(',').map(v => parseFloat(v.trim()));
       return this.config.direction === 'horizontal' ? values[0] : values[1] || values[0];
     }
-
+    
     return 0;
   }
 
@@ -737,12 +684,12 @@ class VanillaCarousel {
   updateNavigation() {
     if (!this.config.loop) {
       if (this.nextButton) {
-        this.nextButton.classList.toggle('carousel-button-disabled',
+        this.nextButton.classList.toggle('carousel-button-disabled', 
           this.currentIndex >= this.slides.length - this.config.slidesPerView);
       }
-
+      
       if (this.prevButton) {
-        this.prevButton.classList.toggle('carousel-button-disabled',
+        this.prevButton.classList.toggle('carousel-button-disabled', 
           this.currentIndex <= 0);
       }
     } else {
@@ -750,7 +697,7 @@ class VanillaCarousel {
       if (this.nextButton) {
         this.nextButton.classList.remove('carousel-button-disabled');
       }
-
+      
       if (this.prevButton) {
         this.prevButton.classList.remove('carousel-button-disabled');
       }
@@ -759,7 +706,7 @@ class VanillaCarousel {
 
   updatePagination() {
     if (!this.paginationEl) return;
-
+    
     if (this.config.pagination.type === 'bullets') {
       this.updateBulletPagination();
     } else if (this.config.pagination.type === 'fraction') {
@@ -771,22 +718,22 @@ class VanillaCarousel {
 
   updateBulletPagination() {
     const bulletsCount = this.originalSlides.length;
-
+    
     if (this.paginationEl.children.length !== bulletsCount) {
       this.paginationEl.innerHTML = '';
-
+      
       for (let i = 0; i < bulletsCount; i++) {
         const bullet = document.createElement('span');
         bullet.className = 'carousel-pagination-bullet';
         bullet.setAttribute('role', 'button');
         bullet.setAttribute('aria-label', `Go to slide ${i + 1}`);
         bullet.setAttribute('tabindex', '0');
-
+        
         if (this.config.pagination.clickable) {
           bullet.addEventListener('click', () => {
             this.slideTo(i);
           });
-
+          
           bullet.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
@@ -794,11 +741,11 @@ class VanillaCarousel {
             }
           });
         }
-
+        
         this.paginationEl.appendChild(bullet);
       }
     }
-
+    
     Array.from(this.paginationEl.children).forEach((bullet, index) => {
       bullet.classList.toggle('carousel-pagination-bullet-active', index === this.realIndex);
     });
@@ -819,7 +766,7 @@ class VanillaCarousel {
 
   startAutoplay() {
     if (!this.config.autoplay || this.autoplayTimer) return;
-
+    
     this.autoplayTimer = setInterval(() => {
       this.slideNext();
     }, this.config.autoplayDelay);
@@ -834,20 +781,20 @@ class VanillaCarousel {
 
   setupLazyLoading(slide) {
     const images = slide.querySelectorAll('img[data-src]');
-
+    
     images.forEach(img => {
       img.classList.add('carousel-lazy');
     });
   }
 
   loadLazyImages() {
-    const activeSlides = Array.from(this.wrapper.children).filter((slide, index) =>
+    const activeSlides = Array.from(this.wrapper.children).filter((slide, index) => 
       this.isSlideActive(index)
     );
-
+    
     activeSlides.forEach(slide => {
       const lazyImages = slide.querySelectorAll('img.carousel-lazy[data-src]');
-
+      
       lazyImages.forEach(img => {
         img.src = img.dataset.src;
         img.classList.remove('carousel-lazy');
@@ -858,7 +805,7 @@ class VanillaCarousel {
 
   destroy() {
     this.pauseAutoplay();
-
+    
     // Remove event listeners
     this.container.removeEventListener('touchstart', this.onTouchStart);
     this.container.removeEventListener('touchmove', this.onTouchMove);
@@ -868,10 +815,10 @@ class VanillaCarousel {
     document.removeEventListener('mouseup', this.onMouseUp);
     document.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('resize', this.onResize);
-
+    
     // Remove classes
     this.container.classList.remove('vanilla-carousel');
-
+    
     this.emit('destroy');
   }
 
@@ -879,7 +826,7 @@ class VanillaCarousel {
     if (this.config.on[event]) {
       this.config.on[event].call(this, data);
     }
-
+    
     const customEvent = new CustomEvent(`carousel:${event}`, { detail: data });
     this.container.dispatchEvent(customEvent);
   }
@@ -904,7 +851,6 @@ class VanillaCarousel {
     this.container.classList.add('carousel-disabled');
   }
 
-
   get activeIndex() {
     return this.realIndex;
   }
@@ -916,7 +862,6 @@ class VanillaCarousel {
   get isEnd() {
     return !this.config.loop && this.currentIndex >= this.slides.length - this.config.slidesPerView;
   }
-
 }
 
 // Export for use
